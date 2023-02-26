@@ -1,7 +1,7 @@
 package main
 
 import (
-	"k8s-reservation-scheduler/pkg/scheduler"
+	"github.com/wenbingz/k8s-reservation-scheduler/pkg/scheduler"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"time"
 )

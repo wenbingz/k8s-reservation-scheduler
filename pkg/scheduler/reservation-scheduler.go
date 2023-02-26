@@ -3,11 +3,11 @@ package scheduler
 import (
 	"context"
 	"fmt"
+	schedulerconfig "github.com/wenbingz/k8s-reservation-scheduler/config/scheduler"
 	"github.com/wenbingz/k8s-resource-reservation/api/v1alpha1"
 	controller "github.com/wenbingz/k8s-resource-reservation/controllers"
 	reservationconfig "github.com/wenbingz/k8s-resource-reservation/pkg/config"
 	"golang.org/x/time/rate"
-	"k8s-reservation-scheduler/config/scheduler"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -98,7 +98,7 @@ func (rs *ReservationScheduler) onAdd(obj interface{}) {
 		fmt.Println(err)
 		return
 	}
-	if !(pod.Spec.NodeName == "" && pod.Spec.SchedulerName == scheduler.SchedulerName) {
+	if !(pod.Spec.NodeName == "" && pod.Spec.SchedulerName == schedulerconfig.SchedulerName) {
 		return
 	}
 	rs.enqueue(pod)
