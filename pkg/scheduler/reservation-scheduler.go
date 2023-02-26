@@ -179,7 +179,7 @@ func (rs *ReservationScheduler) processNextItem() bool {
 		return true
 	}
 	if !ok {
-		// rs.queue.AddRateLimited(key)
+		rs.queue.AddRateLimited(key)
 		return true
 	}
 	return true
