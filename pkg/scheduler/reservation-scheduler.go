@@ -89,18 +89,25 @@ func unstructuredToReservation(obj interface{}) (*v1alpha1.Reservation, error) {
 	}
 	return reservation, nil
 }
-func (rs *ReservationScheduler) enqueue(pod *v1.Pod) {
-	rs.queue.AddRateLimited(pod)
+func (rs *ReservationScheduler) enqueue(obj interface{}) {
+	key, err := keyFunc(obj)
+	if err != nil {
+		fmt.Printf("error when convert into key\n")
+	}
+	rs.queue.AddRateLimited(key)
 }
 func (rs *ReservationScheduler) onAdd(obj interface{}) {
+	fmt.Println("detect a add event")
 	pod, err := unstructuredToPod(obj)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Printf("pod %s, node name: %s, scheduler name: %s \n", pod.Namespace+"/"+pod.Name, pod.Spec.NodeName, pod.Spec.SchedulerName)
 	if !(pod.Spec.NodeName == "" && pod.Spec.SchedulerName == schedulerconfig.SchedulerName) {
 		return
 	}
+	fmt.Printf("pod %s is ready for process\n", pod.Namespace+"/"+pod.Name)
 	rs.enqueue(pod)
 }
 
@@ -160,17 +167,19 @@ func NewReservationScheduler() *ReservationScheduler {
 
 func (rs *ReservationScheduler) processNextItem() bool {
 	key, quit := rs.queue.Get()
+	fmt.Println("trying to process key ", key.(string))
 	if quit {
 		return false
 	}
 	defer rs.queue.Done(key)
 	ok, err := rs.schedulePod(key.(string))
+	fmt.Println(err, ok)
 	if err == nil {
 		rs.queue.Forget(key)
 		return true
 	}
 	if !ok {
-		rs.queue.AddRateLimited(key)
+		// rs.queue.AddRateLimited(key)
 		return true
 	}
 	return true
@@ -235,8 +244,9 @@ func (rs *ReservationScheduler) findPlaceholderForPod(reservation *v1alpha1.Rese
 		}
 		unstructuredPods, err := rs.podLister.ByNamespace(reservation.Namespace).List(labels.SelectorFromSet(map[string]string{
 			reservationconfig.ReservationAppLabel:   reservation.Name,
-			reservationconfig.ReservationResourceId: string(resourceId),
-			reservationconfig.ReservationReplicaId:  string(replicaId),
+			reservationconfig.ReservationResourceId: strconv.Itoa(resourceId),
+			reservationconfig.ReservationReplicaId:  strconv.Itoa(replicaId),
+			reservationconfig.ReservationRole:       reservationconfig.PlaceholderRole,
 		}))
 		if err != nil {
 			return nil, err
@@ -266,7 +276,7 @@ func (rs *ReservationScheduler) preemptPlaceholderPod(placeholderPod *v1.Pod, po
 		return fmt.Errorf("pod %s is not valid to preempt, since its status is %s ", placeholderPod.Namespace+"/"+placeholderPod.Name, placeholderPod.Status.Phase)
 	}
 	nodeName := placeholderPod.Spec.NodeName
-	fmt.Sprintf("trying to assign pod %s to node %s ", podToSchedule.Namespace+"/"+podToSchedule.Namespace, nodeName)
+	fmt.Printf("trying to assign pod %s to node %s \n", podToSchedule.Namespace+"/"+podToSchedule.Namespace, nodeName)
 	rs.clientset.CoreV1().Pods(placeholderPod.Namespace).Bind(context.TODO(), &v1.Binding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podToSchedule.Name,
